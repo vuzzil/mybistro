@@ -1,6 +1,7 @@
-from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_mongoengine import serializers
+from rest_framework_simplejwt_mongoengine.serializers import TokenObtainPairSerializer
 from .models import BistroUser
+from bcrypt import hashpw, gensalt
 
 
 class BistroTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -10,35 +11,45 @@ class BistroTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     @classmethod
     def get_token(cls, user):
-        token = super(BistroTokenObtainPairSerializer, cls).get_token(user)
+        #print('get_token user:' + str(user))
+        token = super().get_token(user)
 
         # Add custom claims
         token['theme'] = user.theme
         return token
 
 
-class BistroUserSerializer(serializers.ModelSerializer):
+class BistroUserSerializer(serializers.DocumentSerializer):
     """
     For login/signup use
     """
-    email = serializers.EmailField(
-        required=True
-    )
-    username = serializers.CharField()
-    password = serializers.CharField(min_length=8, write_only=True)
-
     class Meta:
         model = BistroUser
-        fields = ('email', 'username', 'password', 'theme' , 'is_staff', 'is_admin')
-        extra_kwargs = {'password': {'write_only': True}}
+        #fields = '__all__'
+        fields = ('id',
+                  'username',
+                  'email',
+                  'theme',
+                  'staff',
+                  'admin',
+                  'date_joined',
+                  'last_login')
+        
 
     def create(self, validated_data):
-        password = validated_data.pop('password', None)
-        instance = self.Meta.model(**validated_data)  # as long as the fields are the same, we can just use this
-        if password is not None:
-            instance.set_password(password)
-        # Add default theme=light
-        instance.theme='light'
-        instance.save()
-        return instance
+        user = BistroUser(
+            email = validated_data['email'],
+            username = validated_data['username'],
+            password = validated_data['password'],
+            theme = '',
+            staff = False,
+            admin = False,
+            is_authenticated = False,
+        )
+        #encode password
+        hashed = hashpw(user.password.encode('utf8'), gensalt())
+        user.password = hashed.decode('utf8')
+        
+        user.save()
 
+        return user

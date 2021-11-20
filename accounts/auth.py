@@ -1,12 +1,11 @@
-from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import BaseBackend
-from django.contrib.auth.hashers import check_password
-from django.contrib.auth.models import User
+from datetime import datetime
+from .models import BistroUser
 
 
 class EmailBackend(BaseBackend):
     def authenticate(self, request, email=None, password=None, **kwargs):
-        UserModel = get_user_model()
+        UserModel = BistroUser
         
         try:
             if email==None:
@@ -15,13 +14,17 @@ class EmailBackend(BaseBackend):
         except UserModel.DoesNotExist:
             return None
         else:
-            #print('found user:' + str(user))
             if user.check_password(password):
+                user.last_login = datetime.now()
+                user.is_authenticated = True
+                user.save()
+                #print('user saved:' + str(user))
+
                 return user
         return None
 
     def get_user(self, user_id):
-        UserModel = get_user_model()
+        UserModel = BistroUser
         try:
             return UserModel.objects.get(pk=user_id)
         except UserModel.DoesNotExist:

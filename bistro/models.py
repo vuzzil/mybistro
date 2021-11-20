@@ -1,17 +1,19 @@
-from django.db import models
+from mongoengine import Document, StringField, IntField,DateTimeField
+import datetime
 
-
-class BistroMenu(models.Model):
-    # _id = models.CharField(max_length=24,auto_created=True, primary_key=True)
-    menuid = models.CharField(max_length=20, unique=True)
-    label = models.CharField(max_length=2, blank=False, default='')
-    title = models.CharField(max_length=20, blank=False, default='')
-    price = models.IntegerField()
-    desc = models.CharField(max_length=200, blank=False, default='')
-    image = models.CharField(max_length=100, blank=False, default='')
+class BistroMenu(Document):
+    menuid = StringField(max_length=20, unique=True)
+    label = StringField(max_length=2)
+    title = StringField(max_length=20)
+    price = IntField()
+    desc = StringField(max_length=200)
+    image = StringField(max_length=100)
+    date_modified = DateTimeField(default=datetime.datetime.utcnow)
+    meta = {
+        #'db_alias': 'bistrodb',
+        'indexes': ['menuid'],
+        'ordering': ['-menuid']
+    }
 
     def __str__(self):
         return self.title
-
-    class Meta:
-        ordering = ['menuid']

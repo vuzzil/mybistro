@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
+from mongoengine import connect
 from pathlib import Path
 from datetime import timedelta
 
@@ -39,11 +40,16 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_mongoengine',
+    'rest_framework_simplejwt_mongoengine',
+    'rest_framework_simplejwt_mongoengine.token_blacklist',
     'pymongo',
     'corsheaders',
     'accounts',
     'bistro',
 ]
+
+INSTALLED_APPS += ["django_mongoengine"]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -56,6 +62,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
 
 ROOT_URLCONF = 'bistro_backend.urls'
 
@@ -81,17 +88,33 @@ WSGI_APPLICATION = 'bistro_backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'djongo',
-        'NAME': 'bistrodb',
-        'ENFORCE_SCHEMA': False,
-        'CLIENT': {
-                'host': 'mongodb://vincent:pass2021@localhost:27017/?authSource=bistrodb&authMechanism=SCRAM-SHA-256'
-        }
-    }
-
+MONGODB_DATABASES = {
+    "default": {
+        "name": 'bistrodb',
+        "db": 'bistrodb',
+        "username": "vincent",
+        "password": "pass2021",
+        "host": "localhost",
+        "port": 27017,
+        "authentication_source" : "bistrodb",
+        "authentication_mechanism": "SCRAM-SHA-256",
+        "tz_aware": True,  # if you using timezones in django (USE_TZ = True)
+    },
 }
+MONGOENGINE_USER_DOCUMENT = 'accounts.models.BistroUser'
+AUTHENTICATION_BACKENDS = [
+     'accounts.auth.EmailBackend',
+]
+SESSION_ENGINE = 'django_mongoengine.sessions'
+SESSION_SERIALIZER = 'django_mongoengine.sessions.BSONSerializer'
+
+# connect(alias='bistrodb',
+#         db='bistrodb',
+#         host='mongodb://vincent:pass2021@localhost:27017/?authSource=bistrodb&authMechanism=SCRAM-SHA-256'
+#         )
+
+
+
 
 
 # Password validation
@@ -112,20 +135,17 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-AUTHENTICATION_BACKENDS = [
-    'accounts.auth.EmailBackend',
-]
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework_simplejwt_mongoengine.authentication.JWTAuthentication',
     ],
 }
 
-SIMPLE_JWT = {
+SIMPLE_JWT_MONGOENGINE = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=14),
     'ROTATE_REFRESH_TOKENS': True,
@@ -136,7 +156,8 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('JWT',),
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_USER_CLASS': ('rest_framework_simplejwt_mongoengine.models.TokenUser',),
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt_mongoengine.tokens.AccessToken',),
     'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
@@ -172,6 +193,3 @@ CORS_ORIGIN_WHITELIST = (
     'http://localhost:3000',
     'http://localhost:8080',
 )
-
-# Custom user model
-AUTH_USER_MODEL = "accounts.BistroUser"

@@ -3,4 +3,4 @@ from .models import BistroMenu
 
 
 # Register your models here.
-admin.site.register(BistroMenu)
+#admin.site.register(BistroMenu)

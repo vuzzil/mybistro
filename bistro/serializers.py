@@ -1,7 +1,7 @@
-from rest_framework import serializers
+from rest_framework_mongoengine import serializers
 from bistro.models import BistroMenu
 
-class BistroMenuSerializer(serializers.ModelSerializer):
+class BistroMenuSerializer(serializers.DocumentSerializer):
 
     class Meta:
         model = BistroMenu
@@ -11,4 +11,5 @@ class BistroMenuSerializer(serializers.ModelSerializer):
                   'title',
                   'price',
                   'desc',
-                  'image')
+                  'image',
+                  'date_modified')

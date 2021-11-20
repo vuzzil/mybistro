@@ -2,11 +2,12 @@ from django.http import JsonResponse
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework import permissions
 from rest_framework.parsers import JSONParser
 from rest_framework import status
+from .bistrolog import logging
 
-
-from pymongo import MongoClient
+from mongoengine import connect, disconnect
 from .models import BistroMenu
 from .serializers import BistroMenuSerializer
 
@@ -18,21 +19,29 @@ For JWT Auth ,add custom BistroUser.theme attribute instead
 
 
 @api_view(['GET'])
+@permission_classes([permissions.AllowAny])
 def bistromenu_test(request):
     if request.method == 'GET':
-        #password = urllib.parse.quote_plus('pass2021')
+        # connect(
+        #     alias='bistrodb',
+        #     db='bistrodb',
+        #     host='mongodb://vincent:pass2021@localhost:27017/?authSource=bistrodb&authMechanism=SCRAM-SHA-256'
+        # )
+        # bistromenu = BistroMenu(menuid='A001', title='test')
+        # bistromenu.save()
 
-        client = MongoClient('localhost:27017', username='vincent', password='pass2021',
-                             authSource='bistrodb', authMechanism='SCRAM-SHA-256')
-        db = client.bistrodb
-        collection = db.bistro_bistromenu
-        data = collection.find()
-        serializer = BistroMenuSerializer(
-            data, context={'request': request}, many=True)
+        menus = BistroMenu.objects.all()
+        serializer = BistroMenuSerializer(menus, many=True)
+        return JsonResponse(serializer.data, safe=False)
 
-        client.close()
+# data = []
+# for doc in BistroMenu.objects().order_by('-price'):
+#     print(doc.to_json())
+#     data.append(doc.to_json())
 
-        return Response(serializer.data)
+# disconnect('bistrodb')
+
+# return JsonResponse(data, safe=False)
 
 
 @api_view(['GET', 'POST'])
@@ -42,6 +51,7 @@ def bistromenu_list(request):
         menus = BistroMenu.objects.all()
 
         menuid = request.GET.get('menuid', None)
+        logging.debug("menuid=" + str(menuid))
         if menuid is not None:
             menus = menus.filter(menuid__icontains=menuid)
         type = request.GET.get('type', None)

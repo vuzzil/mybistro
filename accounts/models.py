@@ -1,64 +1,25 @@
-from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from mongoengine import Document, EmailField, StringField, BooleanField, DateTimeField
+from datetime import datetime
+from bcrypt import checkpw
 
 
-class BistroUserManager(BaseUserManager):
-    def create_user(self, username, email, password=None):
-        """
-        Creates and saves a User with the given email and password.
-        """
-        if not username:
-            raise ValueError('Users must have a username')
-
-        if not email:
-            raise ValueError('Users must have an email address')
-
-        user = self.model(
-            username=username,
-            email=self.normalize_email(email),
-        )
-
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_staffuser(self, username, email, password):
-        """
-        Creates and saves a staff user with the given email and password.
-        """
-        user = self.create_user(
-            username,
-            email,
-            password=password,
-        )
-        user.is_staff = True
-        user.save(using=self._db)
-        return user
-
-    def create_superuser(self, username, email, password):
-        """
-        Creates and saves a superuser with the given email and password.
-        """
-        user = self.create_user(
-            username,
-            email,
-            password=password,
-        )
-        user.is_staff = True
-        user.is_admin = True
-        user.save(using=self._db)
-        return user
-
-
-class BistroUser(AbstractBaseUser):
+class BistroUser(Document):
     """
     Customize Bistro  user 
     """
-    email = models.EmailField(verbose_name='email address', max_length=255, unique=True)
-    username = models.CharField(verbose_name='username', blank=False, max_length=150)
-    theme = models.CharField(blank=True, max_length=20)
-    is_staff = models.BooleanField(default=False)  # a admin user; non super-user
-    is_admin = models.BooleanField(default=False)  # a superuser
+    email = EmailField(verbose_name='email address', max_length=255, unique=True)
+    username = StringField(verbose_name='username', blank=False, max_length=150)
+    password = StringField(verbose_name='password', blank=False, max_length=128)
+    theme = StringField(blank=True, max_length=20)
+    staff = BooleanField(blank=False, default=False)  # a admin user; non super-user
+    admin = BooleanField(blank=False, default=False)  # a superuser
+    date_joined = DateTimeField(default=datetime.now(), verbose_name='date joined')
+    last_login = DateTimeField(blank=True, verbose_name='last login')
+    is_authenticated = BooleanField(blank=False, default=False)
+
+    # meta = {
+    #     'db_alias': 'bistrodb',
+    # }
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []  # Email & Password are required by default.
@@ -84,14 +45,33 @@ class BistroUser(AbstractBaseUser):
         # Simplest possible answer: Yes, always
         return True
 
-    # @property
-    # def is_staff(self):
-    #     "Is the user a member of staff?"
-    #     return self.is_staff
+    @property
+    def is_staff(self):
+        "Is the user a member of staff?"
+        return self.staff
 
-    # @property
-    # def is_admin(self):
-    #     "Is the user a admin member?"
-    #     return self.is_admin
-    objects = BistroUserManager()
+    @property
+    def is_active(self):
+        "Is the user active"
+        # Simplest possible answer: Yes, always
+        return True
 
+    @property
+    def is_admin(self):
+        "Is the user a admin member?"
+        return self.admin
+
+
+    def check_password(self, password):
+        return checkpw(password.encode('utf-8'), self.password.encode('utf-8'))
+
+    def to_json(self):
+        return {
+            "id": str(self.pk),
+            "email": self.email,
+            "username": self.username,
+            "theme": self.theme,
+            "staff": self.staff,
+            "admin": self.admin,
+            "last_login": self.last_login.strftime("%Y/%m/%d %H:%M:%S"),
+        }
