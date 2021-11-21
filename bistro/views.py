@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnl
 from rest_framework import permissions
 from rest_framework.parsers import JSONParser
 from rest_framework import status
-from .bistrolog import logging
+#from .bistrolog import logging
 
 from mongoengine import connect, disconnect
 from .models import BistroMenu
@@ -51,7 +51,7 @@ def bistromenu_list(request):
         menus = BistroMenu.objects.all()
 
         menuid = request.GET.get('menuid', None)
-        logging.debug("menuid=" + str(menuid))
+        #logging.debug("menuid=" + str(menuid))
         if menuid is not None:
             menus = menus.filter(menuid__icontains=menuid)
         type = request.GET.get('type', None)

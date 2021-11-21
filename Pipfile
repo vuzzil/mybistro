@@ -5,6 +5,13 @@ name = "pypi"
 
 [packages]
 django = "*"
+django-cors-headers = "*"
+pymango = "*"
+mongoengine = "*"
+django-rest-framework-mongoengine = "*"
+djangorestframework-simplejwt-mongoengine = "*"
+blinker = "*"
+bcrypt = "*"
 
 [dev-packages]
 autopep8 = "*"
