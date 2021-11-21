@@ -20,3 +20,5 @@ media
 
 # Visual Studio Code # 
 .vscode/* 
+/accounts/migrations
+/bistro/migrations
