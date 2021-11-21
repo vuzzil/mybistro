@@ -25,15 +25,7 @@ class BistroUserSerializer(serializers.DocumentSerializer):
     """
     class Meta:
         model = BistroUser
-        #fields = '__all__'
-        fields = ('id',
-                  'username',
-                  'email',
-                  'theme',
-                  'staff',
-                  'admin',
-                  'date_joined',
-                  'last_login')
+        fields = '__all__'
         
 
     def create(self, validated_data):
