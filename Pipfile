@@ -12,6 +12,7 @@ django-rest-framework-mongoengine = "*"
 djangorestframework-simplejwt-mongoengine = "*"
 blinker = "*"
 bcrypt = "*"
+python-decouple = "*"
 
 [dev-packages]
 autopep8 = "*"

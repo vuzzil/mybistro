@@ -10,9 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
-from mongoengine import connect
+
 from pathlib import Path
 from datetime import timedelta
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-atvkjkx0z1xic5a69%m$h6mi9m1n+)_b+qs(4q63w_u!c)#%45'
+SECRET_KEY = config("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -92,29 +93,21 @@ MONGODB_DATABASES = {
     "default": {
         "name": 'bistrodb',
         "db": 'bistrodb',
-        "username": "vincent",
-        "password": "pass2021",
-        "host": "localhost",
-        "port": 27017,
-        "authentication_source" : "bistrodb",
+        "username": config("DATABASE_USERNAME"),
+        "password": config("DATABASE_PASSWORD"),
+        "host": config("DATABASE_HOST", default='localhost'),
+        "port": config("DATABASE_PORT", default=27017, cast=int),
+        "authentication_source": "bistrodb",
         "authentication_mechanism": "SCRAM-SHA-256",
         "tz_aware": True,  # if you using timezones in django (USE_TZ = True)
     },
 }
 MONGOENGINE_USER_DOCUMENT = 'accounts.models.BistroUser'
 AUTHENTICATION_BACKENDS = [
-     'accounts.auth.EmailBackend',
+    'accounts.auth.EmailBackend',
 ]
 SESSION_ENGINE = 'django_mongoengine.sessions'
 SESSION_SERIALIZER = 'django_mongoengine.sessions.BSONSerializer'
-
-# connect(alias='bistrodb',
-#         db='bistrodb',
-#         host='mongodb://vincent:pass2021@localhost:27017/?authSource=bistrodb&authMechanism=SCRAM-SHA-256'
-#         )
-
-
-
 
 
 # Password validation
@@ -190,6 +183,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # CORS
 CORS_ORIGIN_ALLOW_ALL = False
 CORS_ORIGIN_WHITELIST = (
-    'http://localhost:3000',
-    'http://localhost:8080',
+    'http://localhost:3000',  # for local react app use
+    'http://localhost:8080',  # for local nginx use
 )
