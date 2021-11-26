@@ -1,2 +1,2 @@
 #theme: jekyll-theme-minimal
-remote_theme: rundocs/jekyll-rtd-theme
+remote_theme: "mmistakes/minimal-mistakes@4.24.0"
