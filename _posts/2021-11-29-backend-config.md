@@ -59,7 +59,7 @@ bistro_env/
 ```
 打開:[http://127.0.0.1:8000](http://127.0.0.1:8000){:target="_blank"} 檢查是否安裝完成
 
-#### 新增Django專案App 
+#### 新增Django專案的App 
 指令:  
 ``` terminal    
 (bistro_env-28SDm1U8)>python manage.py startapp accounts
@@ -116,6 +116,47 @@ python-decouple = "*"
 (bistro_env-28SDm1U8)>pipenv install
 ```
 
+### 設定資料庫連線
+Django有三種方法可以連接MongoDB  
+1. PyMongo 是MongoDB提供,用Python寫的driver,也是MongoDB推薦的driver。  
+2. Djongo 好處是可以繼續使用Djanogo內建的特色功能，像是django.db.models ,ORM等，感覺像在用SQL類的資料庫，所以也需要`run>  python manage.py makemigrations` and  `python manage.py migrate` 。  其實作方法是將SQL轉為PyMongo語法，所以功能會受限。我之前[上一版tag:conntype1](https://github.com/vuzzil/mybistro/tags){:target="_blank"} 就是採用Djongo實作。
+3. MongoEngine 其底層也是用PyMongo寫的，好處ORM可以用MongoDB的特色功能,如Document,也可以和PyMongo混用。
+但就不能用Djanogo內建的Admin和Models,所以要自己實作Customize User(ex:[BistroUser](https://github.com/vuzzil/mybistro/blob/master/accounts/models.py){:target="_blank"})。  
+
+#### 安裝資料庫連線driver  
+``` terminal    
+(bistro_env-28SDm1U8)>pipenv install pymango
+(bistro_env-28SDm1U8)>pipenv install mongoengine
+```
+修改/bistro_backend/settings.py  
+``` python
+...
+INSTALLED_APPS = [
+    ...
+    pymango,
+    django_mongoengine,
+    ...
+]    
+
+MONGODB_DATABASES = {
+    "default": {
+        "name": 'bistrodb',
+        "db": 'bistrodb',
+        "username": "db_username",
+        "password": "db_password",
+        "host": "localhost",
+        "port": 27017,
+        "authentication_source": "bistrodb",
+        "authentication_mechanism": "SCRAM-SHA-256",
+        "tz_aware": True,  # if you using timezones in django (USE_TZ = True)
+    },
+}
+MONGOENGINE_USER_DOCUMENT = 'accounts.models.BistroUser'
+SESSION_ENGINE = 'django_mongoengine.sessions'
+SESSION_SERIALIZER = 'django_mongoengine.sessions.BSONSerializer'
+
+```
+
 ### 整合rest-framework
 
 #### 安裝需要的套件:
@@ -137,7 +178,51 @@ INSTALLED_APPS = [
 
 
 #### 整合方法:
-Model 改繼承mongoengine.Document  
+##### 定義Api URL
+ex: /bistro_backend/accounts/urls.py  
+``` python
+from django.urls import path
+from accounts import views
+...
+urlpatterns = [
+    ...
+    path('api/signup/', views.bistrouser_create, name="create_user"),
+    path('api/logout/', views.bistrouser_logout, name="logout_user"),
+    path('api/bistro/user/', views.bistrouser_detail, name="get_user"),
+]
+...
+```
+修改/bistro_backend/urls.py
+``` python
+from django.urls import include
+
+urlpatterns = [
+    ...
+    url(r'^', include('accounts.urls')),
+    ...
+]
+```
+
+##### View 實作Api  
+rest_framework 用 @api_view decorator 宣告Api  
+ex: /bistro_backend/accounts/views.py  
+``` python
+from rest_framework.decorators import api_view
+...
+@api_view(['POST'])
+def bistrouser_create(request):
+    serializer = BistroUserSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        if user:
+            json = serializer.data
+            return Response(json, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+...
+```
+
+##### Model 改繼承mongoengine.Document  
+ex: /bistro_backend/accounts/models.py  
 ``` python
 from mongoengine import Document, EmailField, StringField, BooleanField, DateTimeField
 ...
@@ -157,7 +242,8 @@ class BistroUser(Document):
     is_authenticated = BooleanField(blank=False, default=False)
 
 ```
-Serializer 改繼承rest_framework_mongoengine.serializers.DocumentSerializer  
+##### Serializer 改繼承rest_framework_mongoengine.serializers.DocumentSerializer 
+ex: /bistro_backend/accounts/serializers.py  
 ``` python
 from rest_framework_mongoengine import serializers
 ...
@@ -171,6 +257,155 @@ class BistroUserSerializer(serializers.DocumentSerializer):
     ...
 ```
 
+### 整合JWT Authenticatioon
+
+#### 安裝需要的套件
+一般是安裝 djangorestframework_simplejwt，  
+但因還要搭配mongoengine，所以要安裝[mongoengine版 simplejwt](https://djangorestframework-simplejwt-mongoengine.readthedocs.io/en/latest/getting_started.html){:target="_blank"}   
+``` terminal
+$>pipenv install djangorestframework-simplejwt-mongoengine
+```
+#### 整合方法:
+修改/bistro_backend/settings.py  
+並設定API預設的權限=IsAuthenticated,代表存取Api需要先通過登入驗證。  
+``` python
+...
+INSTALLED_APPS = [
+    ...
+    'rest_framework_simplejwt_mongoengine',
+    'rest_framework_simplejwt_mongoengine.token_blacklist',
+]
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt_mongoengine.authentication.JWTAuthentication',
+    ],
+}
+
+SIMPLE_JWT_MONGOENGINE = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=14),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUTH_HEADER_TYPES': ('JWT',),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+    'TOKEN_USER_CLASS': ('rest_framework_simplejwt_mongoengine.models.TokenUser',),
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt_mongoengine.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+}
+
+```
+修改/bistro_backend/accounts/urls.py  
+``` python
+from rest_framework_simplejwt_mongoengine import views as jwt_views
+from rest_framework_simplejwt_mongoengine.views import TokenObtainPairView
+...
+urlpatterns = [
+    ...
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/obtain/', views.ObtainTokenPairWithThemeView.as_view(), name='token_create'),  # ==login
+    path('api/token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'),
+]
+...
+```
+但login/signup需要開放權限:permissions.AllowAny  
+修改/bistro_backend/accounts/views.py  
+``` python
+class ObtainTokenPairWithThemeView(TokenObtainPairView):
+    permission_classes = (permissions.AllowAny,)
+    serializer_class = BistroTokenObtainPairSerializer
+
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def bistrouser_create(request):
+...
+```
+#### 自訂Django登入的驗證方式
+改以email/password驗證  
+新增/bistro_backend/accounts/auth.py  
+``` python
+from django.contrib.auth.backends import BaseBackend
+from datetime import datetime
+from .models import BistroUser
+
+class EmailBackend(BaseBackend):
+    def authenticate(self, request, email=None, password=None, **kwargs):
+        UserModel = BistroUser
+        
+        try:
+            if email==None:
+                email = kwargs.get('username')              #Django Admin Page:use username field
+            user = UserModel.objects.get(email=email)
+        except UserModel.DoesNotExist:
+            return None
+        else:
+            if user.check_password(password):
+                user.last_login = datetime.now()
+                user.is_authenticated = True
+                user.save()
+                #print('user saved:' + str(user))
+
+                return user
+        return None
+
+    def get_user(self, user_id):
+        UserModel = BistroUser
+        try:
+            return UserModel.objects.get(pk=user_id)
+        except UserModel.DoesNotExist:
+            return None
+
+```
+
+修改/bistro_backend/settings.py  
+``` python
+...
+AUTHENTICATION_BACKENDS = [
+    'accounts.auth.EmailBackend',
+]
+...
+```
+##### 使用bcrypt加密/驗證password
+實作BistroUser.check_password  
+安裝需要的套件  
+``` terminal
+$>pipenv install blinker
+$>pipenv install bcrypt
+```
+修改/bistro_backend/accounts/models.py  
+``` python
+from bcrypt import checkpw
+...
+class BistroUser(Document):
+    ...
+    def check_password(self, password):
+        return checkpw(password.encode('utf-8'), self.password.encode('utf-8'))
+```
+新増登入的使用者時，存資料庫前要加密password  
+修改/bistro_backend/accounts/serializers.py  
+``` python
+from bcrypt import hashpw, gensalt
+...
+class BistroUserSerializer(serializers.DocumentSerializer):
+    ...
+    def create(self, validated_data):
+        ...
+        #encode password
+        hashed = hashpw(user.password.encode('utf8'), gensalt())
+        user.password = hashed.decode('utf8')
+        
+        user.save()
+
+```
 
 
 ### 分離設定檔敏感資料
@@ -196,7 +431,6 @@ DATABASE_PASSWORD = 'db_password'
 ``` python
 from decouple import config
 …
-
 SECRET_KEY = config("SECRET_KEY")
 
 MONGODB_DATABASES = {
