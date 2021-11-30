@@ -267,15 +267,20 @@ $>pipenv install djangorestframework-simplejwt-mongoengine
 ```
 #### 整合方法:
 修改/bistro_backend/settings.py  
-並設定API預設的權限=IsAuthenticated,代表存取Api需要先通過登入驗證。  
+將設定API預設的權限=IsAuthenticated,代表存取Api需要先通過登入驗證。  
+目前設定access token有效時限=5分鐘,逾時需以reflesh token來更新access token,
+reflesh token有效時限=14天,但若使用者登出，則reflesh token會加入BlackList而失效，就要重新登入。  
+Note:BlackList資料會一直成長，可以利用blacklist app提供的管理指令:&gt;python manage.py flushexpiredtokens，
+用排程程式(ex:cron)每天清除已經逾期的資料。  
 ``` python
+from datetime import timedelta
 ...
 INSTALLED_APPS = [
     ...
     'rest_framework_simplejwt_mongoengine',
     'rest_framework_simplejwt_mongoengine.token_blacklist',
 ]
-
+...
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -448,6 +453,16 @@ MONGODB_DATABASES = {
 }
 ```
 
-
+### 設定跨來源資源共用（CORS）
+修改/bistro_backend/settings.py  
+``` python
+...
+# CORS
+CORS_ORIGIN_ALLOW_ALL = False
+CORS_ORIGIN_WHITELIST = (
+    'http://localhost:3000',  # for local react app use
+    'http://localhost:8080',  # for local nginx use
+)
+```
 
 
