@@ -314,7 +314,6 @@ from rest_framework_simplejwt_mongoengine.views import TokenObtainPairView
 ...
 urlpatterns = [
     ...
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/obtain/', views.ObtainTokenPairWithThemeView.as_view(), name='token_create'),  # ==login
     path('api/token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'),
 ]
